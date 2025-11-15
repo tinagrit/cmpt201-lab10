@@ -20,18 +20,6 @@ Understanding the Server:
 message to the terminal
 4. How are threads used in this sample code?
    - 1 thread to accept clients and 1 thread for each client
-
-Non-blocking sockets
-1. How are sockets made non-blocking?
-   - Each socket's fd is passed into set_non_blocking() where the flags for the
-file are set for it to not block
-2. What sockets are made non-blocking?
-   - The acceptor's sfd and each client's cfd
-3. Why are these sockets made non-blocking? What purpose does it serve?
-   - For both the acceptor and client, the thread argument includes the boolean
-"run", which can be set to false by main(). Once that happens, the thread should
-abort the execution immediately. If the sockets were blocking, accept() and
-read() would block until information comes.
 */
 
 #include <arpa/inet.h>
