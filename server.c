@@ -1,3 +1,27 @@
+/*
+Questions to answer at top of server.c:
+(You should not need to change client.c)
+Understanding the Client:
+1. How is the client sending data to the server? What protocol?
+   - The client sends data to the server using TCP through INET with
+IP:127.0.0.1 PORT:8001
+2. What data is the client sending to the server?
+   - Each entry of the array "messages"
+Understanding the Server:
+1. Explain the argument that the `run_acceptor` thread is passed as an argument.
+   - A structure containing:
+     - a boolean indicating if the thread should continue accepting clients
+     - a pointer to a linked list containing all the messages
+     - a pointer to a mutex to lock the linked list
+2. How are received messages stored?
+   - Messages are stored in a linked list by each client thread
+3. What does `main()` do with the received messages?
+   - main() calls collect_all to iterate through the linked list and print each
+message to the terminal
+4. How are threads used in this sample code?
+   - 1 thread to accept clients and 1 thread for each client
+*/
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -131,6 +155,10 @@ static void *run_client(void *args) {
 
       struct list_handle *list_handle = cargs->list_handle;
       // TODO: Safely use add_to_list to add new_node to the list
+      pthread_mutex_lock(cargs->list_lock);
+      add_to_list(list_handle, new_node);
+      printf("adding to list\n");
+      pthread_mutex_unlock(cargs->list_lock);
     }
   }
 
@@ -168,6 +196,8 @@ static void *run_acceptor(void *args) {
         num_clients++;
 
         // TODO: Create a new thread to handle the client
+        pthread_create(&threads[num_clients - 1], NULL, run_client,
+                       client_args);
       }
     }
   }
@@ -177,7 +207,10 @@ static void *run_acceptor(void *args) {
   // Shutdown and cleanup
   for (int i = 0; i < num_clients; i++) {
     // TODO: Set flag to stop the client thread
+    client_args[i].run = false;
     // TODO: Wait for the client thread and close its socket
+    pthread_join(threads[i], NULL);
+    close(client_args[i].cfd);
   }
 
   if (close(sfd) == -1) {
@@ -208,6 +241,14 @@ int main() {
   pthread_create(&acceptor_thread, NULL, run_acceptor, &aargs);
 
   // TODO: Wait until enough messages are received
+  int numMessages = 0;
+  while (numMessages < MAX_CLIENTS * NUM_MSG_PER_CLIENT) {
+    pthread_mutex_lock(&list_mutex);
+    numMessages = list_handle.count;
+    printf("%d\n", numMessages);
+    pthread_mutex_unlock(&list_mutex);
+    sleep(1);
+  }
 
   aargs.run = false;
   pthread_join(acceptor_thread, NULL);
